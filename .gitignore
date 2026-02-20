@@ -1,0 +1,22 @@
+# Credentials
+.env
+config/.env
+
+# Data
+data/
+*.sqlite
+*.db
+*.log
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# IDE
+.vscode/
+.idea/
+*.swp
+.DS_Store
