@@ -1,113 +1,140 @@
 # Wolf MNQ Trading Bot
 
+⚠️ **ALWAYS START WITH DEMO MODE** — Paper trade first, validate edge, then go live.
+
 AI-powered bot for trading MNQ (Micro Nasdaq) futures on Tradovate.
 
-## Strategy: 30 Point Momentum
+## Quick Start (Demo Mode)
 
-**Trigger:** 5-minute candle closes with 30+ point move from prior close  
-**Entry:** Market order immediately on candle close  
-**Stop Loss:** LOW of the breakout candle (prior 5min)  
-**Target:** Exactly 1R (data shows TP1 is optimal)  
-**Trailing:** NONE - set and forget
-
-### Rules
-1. Candle must CLOSE 30+ points from prior candle's close
-2. Use the candle CLOSE, not the wick
-3. Stop at candle LOW for longs, HIGH for shorts
-4. Target at 1R exactly (not 2R)
-5. No trailing - let trade play out
-
-## Setup
-
-### 1. Get Tradovate API Credentials
-- Create account at tradovate.com
-- Fund with $500+
-- Enable API access in settings
-- Get: username, password, API secret
-
-### 2. Set Environment Variables
 ```bash
-# Create .env file
+# 1. Clone repository
+git clone https://github.com/buttenhook/mnq-bot.git
+cd mnq-bot
+
+# 2. Set credentials
 cp config/.env.example .env
+nano .env  # Add your demo credentials
 
-# Edit with your credentials
-nano .env
-
-# Add:
-TRADOVATE_USERNAME=your_username
-TRADOVATE_PASSWORD=your_password
-TRADOVATE_API_SECRET=your_secret_here
-TRADOVATE_ACCOUNT_ID=your_account_id
-```
-
-### 3. Install Dependencies
-```bash
-pip install aiohttp websockets
-```
-
-## Running
-
-### Paper Trading (Demo Mode)
-```bash
+# 3. Run paper trading
 export TRADOVATE_MODE=demo
 python3 main.py
 ```
 
-### Live Trading (Real Money)
-```bash
-export TRADOVATE_MODE=live
-python3 main.py
-```
+See [SETUP.md](SETUP.md) for detailed instructions.
 
-## Files
+---
+
+## Strategy: 30 Point Momentum
+
+**Trigger:** 5-minute candle CLOSES with 30+ point move from prior close  
+**Entry:** Market order immediately on candle close  
+**Stop Loss:** LOW of the breakout candle (prior 5min)  
+**Target:** Exactly 1R — data shows this is optimal  
+**Trailing:** **NONE** — set and forget
+
+### Why 1R?
+Backtest data shows taking TP1 at 1R outperforms the "let it ride" approach.
+
+### Why Candle Low?
+Stop at the LOW of the breakout candle, not swing lows. This gives a tighter stop while respecting the momentum.
+
+### Rules Summary
+1. Candle must **CLOSE** 30+ points from prior candle's close
+2. Use the **CLOSE**, not wicks
+3. Stop at candle **LOW** (longs) or **HIGH** (shorts)
+4. Target at **1R exactly** (not 2R)
+5. **No trailing** — let the trade play out
+
+---
+
+## Repository Structure
 
 ```
 mnq-bot/
-├── main.py                 # Main bot
+├── main.py                    # Main bot loop
+├── SETUP.md                   # Detailed setup guide
 ├── config/
-│   └── .env.example        # Credentials template
-├── utils/
-│   └── auth_manager.py     # Token auth + renewal
-├── core/
-│   ├── order_manager.py    # Place/cancel/modify orders
-│   ├── market_data.py      # WebSocket quotes
-│   └── risk_manager.py     # Position sizing + killswitch
+│   └── .env.example          # Credentials template
+├── core/                      # Core components
+│   ├── auth_manager.py       # Token auth + renewal
+│   ├── order_manager.py      # Place/cancel orders (REST)
+│   ├── market_data.py        # WebSocket quotes + positions
+│   └── risk_manager.py       # Position sizing, kill switch
 ├── strategies/
-│   └── momentum_30pt.py    # Your strategy
-└── README.md
+│   └── momentum_30pt.py      # 30pt strategy logic
+└── utils/
+    └── auth_manager.py       # (duplicate, use core/)
 ```
+
+---
+
+## Demo Mode vs Live
+
+| Feature | Demo (Paper) | Live (Real Money) |
+|---------|--------------|-------------------|
+| Money | Simulated | Real $500+ |
+| Risk | None | Real P&L |
+| API | demo.tradovateapi.com | live.tradovateapi.com |
+| WebSocket | md.tradovateapi.com | md.tradovateapi.com |
+| Fills | Simulated delay | Real market liquidity |
+| **START HERE** | ✅ This first | Only after demo works |
+
+---
+
+## Process
+
+### Phase 1: Demo (Paper Trading)
+1. Create demo account
+2. Run bot for 2-4 weeks
+3. Log every trade to `paper_trades.log`
+4. Analyze win rate, R-multiples
+5. Validate edge exists
+
+### Phase 2: Live (Real Money)
+1. Fund account ($500 minimum)
+2. Switch to `TRADOVATE_MODE=live`
+3. Trade with 1 MNQ contract
+4. Same strategy, same risk rules
+5. Scale up gradually
+
+---
 
 ## Key Technical Details
 
 ### API Endpoints
-- Auth: `POST /auth/accessTokenRequest`
-- Orders: `POST /order/placeorder`
-- WebSocket: `wss://md-live.tradovateapi.com/v1/websocket`
+- **Auth:** `POST /auth/accessTokenRequest`
+- **Order:** `POST /order/placeorder`
+- **WebSocket:** `wss://md.tradovateapi.com/v1/websocket`
 
-### MNQ Contract Format
-- March: `MNQH6`
-- June: `MNQM6`
-- $0.50 per tick (0.25 points)
-- Pick symbol based on expiry
+### MNQ Contract
+- Symbol: `MNQH6` (March expiry)
+- Tick value: $0.50 per 0.25 points
+- 24/5 market
 
-### Risk Management
-- Max daily loss: -$500
-- Max position size: 1 MNQ (configurable)
-- Kill switch: auto-flatten on limit hit
-- Paper mode: logs trades to `paper_trades.log`
-
-## Process
-
-1. **Paper Trade**: Run 2+ weeks, validate edge
-2. **Small Live**: 1 MNQ contracts, $2/point
-3. **Scale**: Add size
-
-## Data Shows
-
-- **30pt momentum** triggers on 5min closes
-- **1R profit** is optimal (not 2R)
-- **Stop at candle LOW** works better than swing lows
-- **No trailing** - set and forget
+### Timeframes
+- Token expiry: 90 minutes
+- Renew at: 75 minutes
+- Candle close: Every 5 minutes
+- Max sessions: 2 concurrent
 
 ---
-*Wolf Trading Bot | Feb 2026*
+
+## Risk Management
+
+Built-in safeguards:
+- ❌ Max daily loss: -$500 (stops all trading)
+- ❌ Max position: 1 MNQ
+- ❌ Kill switch: Emergency flatten
+- ✅ Paper mode: Zero financial risk
+
+---
+
+## Documentation
+
+- **SETUP.md** — Step-by-step setup guide
+- This README — Quick reference
+- Inline comments — Strategy logic
+
+---
+
+**Bot Status:** Demo mode ready 🐺
