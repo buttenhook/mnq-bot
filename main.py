@@ -146,6 +146,13 @@ class MNQTradingBot:
         stop = signal["stop_price"]
         target = self.strategy.calculate_target(entry, stop, direction)
         
+        # GUARDRAIL: No double positions
+        if self.position and self.position.qty != 0:
+            print(f"\n🔒 GUARDRAIL: Position already open ({self.position.qty}x). Skip.")
+            return
+        
+        # Risk check
+        
         allowed, reason = self.risk.check_entry(direction, 1, entry, stop)
         
         if not allowed:
